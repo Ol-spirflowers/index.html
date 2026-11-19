@@ -89,6 +89,13 @@
             box-sizing: border-box;
             font-size: 14px;
         }
+        .summary-box {
+            margin-bottom: 16px;
+            background: var(--secondary-bg-color);
+            padding: 12px;
+            border-radius: 8px;
+            line-height: 1.5;
+        }
         .hidden { display: none !important; }
     </style>
 </head>
@@ -144,7 +151,18 @@
 
     <div id="checkout-view" class="hidden">
         <h2>📋 Оформлення замовлення</h2>
-        <div id="cart-items-list" style="margin-bottom: 16px; background: var(--secondary-bg-color); padding: 10px; border-radius: 8px;"></div>
+
+        <div class="form-group">
+            <label>Зона / вартість доставки:</label>
+            <select id="delivery_zone" class="form-control" onchange="renderSummary()">
+                <option value="100" data-label="По місту Житомир">По місту Житомир — 100 грн</option>
+                <option value="250" data-label="Передмістя Житомира">Передмістя Житомира — 250 грн</option>
+                <option value="500" data-label="Житомирська область">Житомирська область — 500 грн</option>
+                <option value="0" data-label="Самовивіз">Самовивіз — 0 грн</option>
+            </select>
+        </div>
+
+        <div id="cart-items-list" class="summary-box"></div>
 
         <div class="form-group">
             <label>Населений пункт (Житомир, Бердичів, Довбиш тощо):</label>
@@ -195,16 +213,31 @@
             }
         }
 
+        function getItemsTotal() {
+            var sum = 0;
+            for (var i = 0; i < cart.length; i++) {
+                sum += cart[i].price;
+            }
+            return sum;
+        }
+
+        function getDeliveryPrice() {
+            var sel = document.getElementById('delivery_zone');
+            return sel ? Number(sel.value || 0) : 0;
+        }
+
+        function getDeliveryLabel() {
+            var sel = document.getElementById('delivery_zone');
+            if (!sel || !sel.options[sel.selectedIndex]) return 'Доставка';
+            return sel.options[sel.selectedIndex].getAttribute('data-label') || sel.options[sel.selectedIndex].text;
+        }
+
         function updateCartUI() {
             var bar = document.getElementById('cart-bar');
             var countSpan = document.getElementById('cart-count');
             var totalSpan = document.getElementById('cart-total');
-            var total = 0;
-            for (var i = 0; i < cart.length; i++) {
-                total += cart[i].price;
-            }
             countSpan.innerText = cart.length;
-            totalSpan.innerText = total;
+            totalSpan.innerText = getItemsTotal();
             if (cart.length > 0) {
                 bar.classList.remove('hidden');
             } else {
@@ -212,20 +245,28 @@
             }
         }
 
+        function renderSummary() {
+            var listDiv = document.getElementById('cart-items-list');
+            var itemsTotal = getItemsTotal();
+            var deliveryPrice = getDeliveryPrice();
+            var grandTotal = itemsTotal + deliveryPrice;
+
+            var html = '<b>Обрані позиції:</b><br>';
+            for (var i = 0; i < cart.length; i++) {
+                html += '• ' + cart[i].name + ' — <b>' + cart[i].price + ' грн</b><br>';
+            }
+            html += '<hr style="border:0; border-top:1px solid var(--hint-color); margin:8px 0;">';
+            html += 'Сума за квіти/подарунки: <b>' + itemsTotal + ' грн</b><br>';
+            html += 'Доставка (' + getDeliveryLabel() + '): <b>' + deliveryPrice + ' грн</b><br>';
+            html += '<div style="margin-top:6px; font-size:16px;"><b>Разом до сплати: ' + grandTotal + ' грн</b></div>';
+            listDiv.innerHTML = html;
+        }
+
         function showCheckout() {
             document.getElementById('catalog-view').classList.add('hidden');
             document.getElementById('cart-bar').classList.add('hidden');
             document.getElementById('checkout-view').classList.remove('hidden');
-
-            var listDiv = document.getElementById('cart-items-list');
-            var html = '<b>Обрані товари:</b><br>';
-            var total = 0;
-            for (var i = 0; i < cart.length; i++) {
-                html += '• ' + cart[i].name + ' — ' + cart[i].price + ' грн<br>';
-                total += cart[i].price;
-            }
-            html += '<hr style="border:0; border-top:1px solid var(--hint-color); margin:6px 0;"><b>Сума за товари: ' + total + ' грн</b>';
-            listDiv.innerHTML = html;
+            renderSummary();
         }
 
         function showCatalog() {
@@ -246,8 +287,16 @@
                 return;
             }
 
+            var itemsTotal = getItemsTotal();
+            var deliveryPrice = getDeliveryPrice();
+            var grandTotal = itemsTotal + deliveryPrice;
+
             var orderData = {
                 cart: cart,
+                items_total: itemsTotal,
+                delivery_zone: getDeliveryLabel(),
+                delivery_price: deliveryPrice,
+                grand_total: grandTotal,
                 city: city,
                 address: address,
                 datetime: datetime,
